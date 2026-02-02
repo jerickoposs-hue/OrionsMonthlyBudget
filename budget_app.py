@@ -348,34 +348,136 @@ with tab1:
             
             # Sort by date descending
             display_df = display_df.sort_values('date', ascending=False)
+            display_df = display_df.reset_index(drop=True)
             
-            # Display transactions
+            # Display transaction count
             st.write(f"**{len(display_df)} transactions found**")
             
-            for idx, row in display_df.head(20).iterrows():
+            # Headers
+            header_col1, header_col2, header_col3, header_col4, header_col5 = st.columns([1.5, 2.5, 1.5, 1, 0.8])
+            with header_col1:
+                st.markdown("**Date**")
+            with header_col2:
+                st.markdown("**Category & Description**")
+            with header_col3:
+                st.markdown("**Amount**")
+            with header_col4:
+                st.markdown("**Actions**")
+            with header_col5:
+                st.markdown("**Del**")
+            
+            st.divider()
+            
+            # Display transactions with edit capability
+            for idx in display_df.index[:20]:  # Show first 20
+                row = display_df.loc[idx]
+                original_idx = st.session_state.transactions.index(
+                    [t for t in st.session_state.transactions 
+                     if t['date'] == row['date'].strftime('%Y-%m-%d') 
+                     and t['type'] == row['type']
+                     and t['category'] == row['category']
+                     and t['amount'] == row['amount']
+                     and t.get('description', '') == row.get('description', '')][0]
+                )
+                
+                # Check if this transaction is in edit mode
+                edit_key = f"edit_{original_idx}"
+                if edit_key not in st.session_state:
+                    st.session_state[edit_key] = False
+                
                 with st.container():
-                    col1, col2, col3, col4 = st.columns([2, 3, 2, 1])
+                    if st.session_state[edit_key]:
+                        # EDIT MODE
+                        edit_col1, edit_col2, edit_col3, edit_col4, edit_col5 = st.columns([1.5, 2.5, 1.5, 1, 0.8])
+                        
+                        with edit_col1:
+                            new_date = st.date_input(
+                                "Date", 
+                                value=row['date'].date(),
+                                key=f"edit_date_{original_idx}",
+                                label_visibility="collapsed"
+                            )
+                        
+                        with edit_col2:
+                            # Category dropdown based on type
+                            categories = st.session_state.categories['expense'] if row['type'] == 'Expense' else st.session_state.categories['income']
+                            new_category = st.selectbox(
+                                "Category",
+                                categories,
+                                index=categories.index(row['category']) if row['category'] in categories else 0,
+                                key=f"edit_cat_{original_idx}",
+                                label_visibility="collapsed"
+                            )
+                            new_description = st.text_input(
+                                "Description",
+                                value=row.get('description', ''),
+                                key=f"edit_desc_{original_idx}",
+                                label_visibility="collapsed",
+                                placeholder="Description"
+                            )
+                        
+                        with edit_col3:
+                            new_amount = st.number_input(
+                                "Amount",
+                                value=float(row['amount']),
+                                min_value=0.01,
+                                step=0.01,
+                                format="%.2f",
+                                key=f"edit_amt_{original_idx}",
+                                label_visibility="collapsed"
+                            )
+                        
+                        with edit_col4:
+                            if st.button("💾", key=f"save_{original_idx}", help="Save changes"):
+                                # Update the transaction
+                                st.session_state.transactions[original_idx]['date'] = new_date.isoformat()
+                                st.session_state.transactions[original_idx]['category'] = new_category
+                                st.session_state.transactions[original_idx]['amount'] = float(new_amount)
+                                st.session_state.transactions[original_idx]['description'] = new_description
+                                st.session_state[edit_key] = False
+                                save_data()
+                                st.success("Transaction updated!")
+                                st.rerun()
+                            
+                            if st.button("❌", key=f"cancel_{original_idx}", help="Cancel editing"):
+                                st.session_state[edit_key] = False
+                                st.rerun()
+                        
+                        with edit_col5:
+                            st.write("")  # Placeholder
                     
-                    with col1:
-                        st.write(f"**{row['date'].strftime('%Y-%m-%d')}**")
-                    
-                    with col2:
-                        type_emoji = "📤" if row['type'] == "Income" else "📥"
-                        st.write(f"{type_emoji} {row['category']}")
-                        if row['description']:
-                            st.caption(row['description'])
-                    
-                    with col3:
-                        color = "green" if row['type'] == "Income" else "red"
-                        st.markdown(f":{color}[**${row['amount']:,.2f}**]")
-                    
-                    with col4:
-                        if st.button("🗑️", key=f"del_{idx}"):
-                            st.session_state.transactions = [t for i, t in enumerate(st.session_state.transactions) if i != idx]
-                            save_data()
-                            st.rerun()
+                    else:
+                        # VIEW MODE
+                        view_col1, view_col2, view_col3, view_col4, view_col5 = st.columns([1.5, 2.5, 1.5, 1, 0.8])
+                        
+                        with view_col1:
+                            st.write(f"{row['date'].strftime('%Y-%m-%d')}")
+                        
+                        with view_col2:
+                            type_emoji = "📤" if row['type'] == "Income" else "📥"
+                            st.write(f"{type_emoji} {row['category']}")
+                            if row.get('description'):
+                                st.caption(row['description'])
+                        
+                        with view_col3:
+                            color = "green" if row['type'] == "Income" else "red"
+                            st.markdown(f":{color}[**${row['amount']:,.2f}**]")
+                        
+                        with view_col4:
+                            if st.button("✏️", key=f"edit_btn_{original_idx}", help="Edit transaction"):
+                                st.session_state[edit_key] = True
+                                st.rerun()
+                        
+                        with view_col5:
+                            if st.button("🗑️", key=f"del_{original_idx}", help="Delete transaction"):
+                                st.session_state.transactions.pop(original_idx)
+                                save_data()
+                                st.rerun()
                     
                     st.divider()
+            
+            if len(display_df) > 20:
+                st.info(f"Showing 20 of {len(display_df)} transactions. Use filters to narrow down results.")
         else:
             st.info("No transactions yet. Add your first transaction above!")
 
