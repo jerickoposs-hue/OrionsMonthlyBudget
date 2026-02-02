@@ -543,14 +543,21 @@ with tab3:
         
         df = get_transactions_df()
         month_df = filter_by_date_range(df, month_start, month_end)
-        month_expenses = month_df[month_df['type'] == 'Expense']
+        
+        if not month_df.empty:
+            month_expenses = month_df[month_df['type'] == 'Expense']
+        else:
+            month_expenses = pd.DataFrame()
         
         if budget_month in st.session_state.budgets:
             budget_data = []
             
             for category, budget_amount in st.session_state.budgets[budget_month].items():
                 if budget_amount > 0:
-                    actual = month_expenses[month_expenses['category'] == category]['amount'].sum()
+                    if not month_expenses.empty:
+                        actual = month_expenses[month_expenses['category'] == category]['amount'].sum()
+                    else:
+                        actual = 0
                     remaining = budget_amount - actual
                     percent_used = (actual / budget_amount * 100) if budget_amount > 0 else 0
                     
