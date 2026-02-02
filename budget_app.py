@@ -1206,21 +1206,89 @@ with tab7:
         st.write("**Current Expense Categories:**")
         st.caption(f"{len(st.session_state.categories['expense'])} categories")
         
-        # Display in a container with delete buttons
+        # Display in a container with edit and delete buttons
         for idx, cat in enumerate(sorted(st.session_state.categories['expense'])):
-            col_a, col_b = st.columns([5, 1])
-            with col_a:
-                st.write(f"{idx + 1}. {cat}")
-            with col_b:
-                # Allow deletion of any category, but warn if it's a default
-                if st.button("🗑️", key=f"del_exp_{idx}_{cat}", help="Delete this category"):
-                    # Check if category is in use
-                    df = get_transactions_df()
-                    if not df.empty:
-                        in_use = len(df[df['category'] == cat]) > 0
-                        if in_use:
-                            st.warning(f"⚠️ '{cat}' is used in {len(df[df['category'] == cat])} transactions!")
-                            if st.button(f"⚠️ Delete anyway?", key=f"confirm_del_exp_{idx}"):
+            # Check if this category is in edit mode
+            edit_key = f"edit_exp_cat_{idx}"
+            if edit_key not in st.session_state:
+                st.session_state[edit_key] = False
+            
+            col_a, col_b, col_c = st.columns([5, 1, 1])
+            
+            if st.session_state[edit_key]:
+                # EDIT MODE
+                with col_a:
+                    new_name = st.text_input(
+                        "Category name",
+                        value=cat,
+                        key=f"rename_exp_{idx}",
+                        label_visibility="collapsed"
+                    )
+                
+                with col_b:
+                    if st.button("💾", key=f"save_exp_{idx}", help="Save changes"):
+                        if new_name and new_name != cat:
+                            if new_name in st.session_state.categories['expense']:
+                                st.error(f"Category '{new_name}' already exists!")
+                            else:
+                                # Update category name in all transactions
+                                df = get_transactions_df()
+                                if not df.empty:
+                                    for i, trans in enumerate(st.session_state.transactions):
+                                        if trans['category'] == cat:
+                                            st.session_state.transactions[i]['category'] = new_name
+                                
+                                # Update category name in budgets
+                                for month_key in st.session_state.budgets:
+                                    if cat in st.session_state.budgets[month_key]:
+                                        st.session_state.budgets[month_key][new_name] = st.session_state.budgets[month_key].pop(cat)
+                                
+                                # Update category name in recurring transactions
+                                for i, rec in enumerate(st.session_state.recurring):
+                                    if rec['category'] == cat:
+                                        st.session_state.recurring[i]['category'] = new_name
+                                
+                                # Update in categories list
+                                st.session_state.categories['expense'].remove(cat)
+                                st.session_state.categories['expense'].append(new_name)
+                                st.session_state.categories['expense'].sort()
+                                
+                                st.session_state[edit_key] = False
+                                save_data()
+                                st.success(f"Renamed '{cat}' to '{new_name}'")
+                                st.rerun()
+                        else:
+                            st.session_state[edit_key] = False
+                            st.rerun()
+                
+                with col_c:
+                    if st.button("❌", key=f"cancel_exp_{idx}", help="Cancel"):
+                        st.session_state[edit_key] = False
+                        st.rerun()
+            else:
+                # VIEW MODE
+                with col_a:
+                    st.write(f"{idx + 1}. {cat}")
+                
+                with col_b:
+                    if st.button("✏️", key=f"edit_exp_btn_{idx}", help="Rename category"):
+                        st.session_state[edit_key] = True
+                        st.rerun()
+                
+                with col_c:
+                    if st.button("🗑️", key=f"del_exp_{idx}_{cat}", help="Delete category"):
+                        # Check if category is in use
+                        df = get_transactions_df()
+                        if not df.empty:
+                            in_use = len(df[df['category'] == cat]) > 0
+                            if in_use:
+                                st.warning(f"⚠️ '{cat}' is used in {len(df[df['category'] == cat])} transactions!")
+                                if st.button(f"⚠️ Delete anyway?", key=f"confirm_del_exp_{idx}"):
+                                    st.session_state.categories['expense'].remove(cat)
+                                    save_data()
+                                    st.success(f"Deleted '{cat}'")
+                                    st.rerun()
+                            else:
                                 st.session_state.categories['expense'].remove(cat)
                                 save_data()
                                 st.success(f"Deleted '{cat}'")
@@ -1228,12 +1296,7 @@ with tab7:
                         else:
                             st.session_state.categories['expense'].remove(cat)
                             save_data()
-                            st.success(f"Deleted '{cat}'")
                             st.rerun()
-                    else:
-                        st.session_state.categories['expense'].remove(cat)
-                        save_data()
-                        st.rerun()
     
     with col2:
         st.subheader("📤 Income Categories")
@@ -1267,20 +1330,84 @@ with tab7:
         st.write("**Current Income Categories:**")
         st.caption(f"{len(st.session_state.categories['income'])} categories")
         
-        # Display in a container with delete buttons
+        # Display in a container with edit and delete buttons
         for idx, cat in enumerate(sorted(st.session_state.categories['income'])):
-            col_a, col_b = st.columns([5, 1])
-            with col_a:
-                st.write(f"{idx + 1}. {cat}")
-            with col_b:
-                if st.button("🗑️", key=f"del_inc_{idx}_{cat}", help="Delete this category"):
-                    # Check if category is in use
-                    df = get_transactions_df()
-                    if not df.empty:
-                        in_use = len(df[df['category'] == cat]) > 0
-                        if in_use:
-                            st.warning(f"⚠️ '{cat}' is used in {len(df[df['category'] == cat])} transactions!")
-                            if st.button(f"⚠️ Delete anyway?", key=f"confirm_del_inc_{idx}"):
+            # Check if this category is in edit mode
+            edit_key = f"edit_inc_cat_{idx}"
+            if edit_key not in st.session_state:
+                st.session_state[edit_key] = False
+            
+            col_a, col_b, col_c = st.columns([5, 1, 1])
+            
+            if st.session_state[edit_key]:
+                # EDIT MODE
+                with col_a:
+                    new_name = st.text_input(
+                        "Category name",
+                        value=cat,
+                        key=f"rename_inc_{idx}",
+                        label_visibility="collapsed"
+                    )
+                
+                with col_b:
+                    if st.button("💾", key=f"save_inc_{idx}", help="Save changes"):
+                        if new_name and new_name != cat:
+                            if new_name in st.session_state.categories['income']:
+                                st.error(f"Category '{new_name}' already exists!")
+                            else:
+                                # Update category name in all transactions
+                                df = get_transactions_df()
+                                if not df.empty:
+                                    for i, trans in enumerate(st.session_state.transactions):
+                                        if trans['category'] == cat:
+                                            st.session_state.transactions[i]['category'] = new_name
+                                
+                                # Update category name in recurring transactions
+                                for i, rec in enumerate(st.session_state.recurring):
+                                    if rec['category'] == cat:
+                                        st.session_state.recurring[i]['category'] = new_name
+                                
+                                # Update in categories list
+                                st.session_state.categories['income'].remove(cat)
+                                st.session_state.categories['income'].append(new_name)
+                                st.session_state.categories['income'].sort()
+                                
+                                st.session_state[edit_key] = False
+                                save_data()
+                                st.success(f"Renamed '{cat}' to '{new_name}'")
+                                st.rerun()
+                        else:
+                            st.session_state[edit_key] = False
+                            st.rerun()
+                
+                with col_c:
+                    if st.button("❌", key=f"cancel_inc_{idx}", help="Cancel"):
+                        st.session_state[edit_key] = False
+                        st.rerun()
+            else:
+                # VIEW MODE
+                with col_a:
+                    st.write(f"{idx + 1}. {cat}")
+                
+                with col_b:
+                    if st.button("✏️", key=f"edit_inc_btn_{idx}", help="Rename category"):
+                        st.session_state[edit_key] = True
+                        st.rerun()
+                
+                with col_c:
+                    if st.button("🗑️", key=f"del_inc_{idx}_{cat}", help="Delete category"):
+                        # Check if category is in use
+                        df = get_transactions_df()
+                        if not df.empty:
+                            in_use = len(df[df['category'] == cat]) > 0
+                            if in_use:
+                                st.warning(f"⚠️ '{cat}' is used in {len(df[df['category'] == cat])} transactions!")
+                                if st.button(f"⚠️ Delete anyway?", key=f"confirm_del_inc_{idx}"):
+                                    st.session_state.categories['income'].remove(cat)
+                                    save_data()
+                                    st.success(f"Deleted '{cat}'")
+                                    st.rerun()
+                            else:
                                 st.session_state.categories['income'].remove(cat)
                                 save_data()
                                 st.success(f"Deleted '{cat}'")
@@ -1288,12 +1415,7 @@ with tab7:
                         else:
                             st.session_state.categories['income'].remove(cat)
                             save_data()
-                            st.success(f"Deleted '{cat}'")
                             st.rerun()
-                    else:
-                        st.session_state.categories['income'].remove(cat)
-                        save_data()
-                        st.rerun()
     
     st.divider()
     
