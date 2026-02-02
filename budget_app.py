@@ -53,13 +53,13 @@ DEFAULT_EXPENSE_CATEGORIES = [
     "🏠 Housing", "🚗 Transportation", "🍔 Food & Dining", "🛒 Groceries",
     "⚡ Utilities", "📱 Phone & Internet", "🏥 Healthcare", "💊 Insurance",
     "🎓 Education", "🎬 Entertainment", "👕 Clothing", "💇 Personal Care",
-    "🎁 Gifts & Donations", "💳 Debt Payments", "💰 Savings", "📦 Shopping",
-    "🐕 Pets", "🔧 Maintenance", "🎯 Other"
+    "🎁 Gifts & Donations", "💳 Debt Payments", "📦 Shopping",
+    "🐕 Pets", "🔧 Maintenance", "🚙 Auto & Gas", "💡 Other Expenses"
 ]
 
 DEFAULT_INCOME_CATEGORIES = [
-    "💼 Salary", "💵 Freelance", "📈 Investments", "🎁 Gifts", 
-    "💰 Bonus", "🏢 Business", "📊 Other Income"
+    "💼 Salary", "💵 Freelance", "📈 Investments", "🎁 Gifts Received", 
+    "💰 Bonus", "🏢 Business Income", "🏦 Interest", "💸 Refunds", "📊 Other Income"
 ]
 
 # Initialize session state
@@ -1065,6 +1065,8 @@ with tab6:
 with tab7:
     st.header("⚙️ Category Management")
     
+    st.info("💡 Tip: Use emojis to make your categories visually distinct! For example: 🎮 Gaming, ☕ Coffee, 🎵 Music")
+    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -1074,21 +1076,56 @@ with tab7:
             new_expense_cat = st.text_input("Add New Expense Category", 
                                            placeholder="🎮 Gaming")
             
-            if st.form_submit_button("Add Expense Category", use_container_width=True):
-                if new_expense_cat and new_expense_cat not in st.session_state.categories['expense']:
+            col_a, col_b = st.columns(2)
+            with col_a:
+                add_expense = st.form_submit_button("➕ Add Category", use_container_width=True, type="primary")
+            with col_b:
+                reset_expense = st.form_submit_button("🔄 Reset to Default", use_container_width=True)
+            
+            if add_expense and new_expense_cat:
+                if new_expense_cat not in st.session_state.categories['expense']:
                     st.session_state.categories['expense'].append(new_expense_cat)
+                    st.session_state.categories['expense'].sort()
                     save_data()
-                    st.success(f"Added '{new_expense_cat}'!")
+                    st.success(f"✅ Added '{new_expense_cat}'!")
                     st.rerun()
+                else:
+                    st.warning(f"⚠️ '{new_expense_cat}' already exists!")
+            
+            if reset_expense:
+                st.session_state.categories['expense'] = DEFAULT_EXPENSE_CATEGORIES.copy()
+                save_data()
+                st.success("✅ Reset to default expense categories!")
+                st.rerun()
         
         st.write("**Current Expense Categories:**")
-        for cat in st.session_state.categories['expense']:
-            col_a, col_b = st.columns([4, 1])
+        st.caption(f"{len(st.session_state.categories['expense'])} categories")
+        
+        # Display in a container with delete buttons
+        for idx, cat in enumerate(sorted(st.session_state.categories['expense'])):
+            col_a, col_b = st.columns([5, 1])
             with col_a:
-                st.write(cat)
+                st.write(f"{idx + 1}. {cat}")
             with col_b:
-                if cat not in DEFAULT_EXPENSE_CATEGORIES:
-                    if st.button("🗑️", key=f"del_exp_{cat}"):
+                # Allow deletion of any category, but warn if it's a default
+                if st.button("🗑️", key=f"del_exp_{idx}_{cat}", help="Delete this category"):
+                    # Check if category is in use
+                    df = get_transactions_df()
+                    if not df.empty:
+                        in_use = len(df[df['category'] == cat]) > 0
+                        if in_use:
+                            st.warning(f"⚠️ '{cat}' is used in {len(df[df['category'] == cat])} transactions!")
+                            if st.button(f"⚠️ Delete anyway?", key=f"confirm_del_exp_{idx}"):
+                                st.session_state.categories['expense'].remove(cat)
+                                save_data()
+                                st.success(f"Deleted '{cat}'")
+                                st.rerun()
+                        else:
+                            st.session_state.categories['expense'].remove(cat)
+                            save_data()
+                            st.success(f"Deleted '{cat}'")
+                            st.rerun()
+                    else:
                         st.session_state.categories['expense'].remove(cat)
                         save_data()
                         st.rerun()
@@ -1098,26 +1135,91 @@ with tab7:
         
         with st.form("income_category_form"):
             new_income_cat = st.text_input("Add New Income Category",
-                                          placeholder="🎨 Hobby Income")
+                                          placeholder="🎨 Side Hustle")
             
-            if st.form_submit_button("Add Income Category", use_container_width=True):
-                if new_income_cat and new_income_cat not in st.session_state.categories['income']:
+            col_a, col_b = st.columns(2)
+            with col_a:
+                add_income = st.form_submit_button("➕ Add Category", use_container_width=True, type="primary")
+            with col_b:
+                reset_income = st.form_submit_button("🔄 Reset to Default", use_container_width=True)
+            
+            if add_income and new_income_cat:
+                if new_income_cat not in st.session_state.categories['income']:
                     st.session_state.categories['income'].append(new_income_cat)
+                    st.session_state.categories['income'].sort()
                     save_data()
-                    st.success(f"Added '{new_income_cat}'!")
+                    st.success(f"✅ Added '{new_income_cat}'!")
                     st.rerun()
+                else:
+                    st.warning(f"⚠️ '{new_income_cat}' already exists!")
+            
+            if reset_income:
+                st.session_state.categories['income'] = DEFAULT_INCOME_CATEGORIES.copy()
+                save_data()
+                st.success("✅ Reset to default income categories!")
+                st.rerun()
         
         st.write("**Current Income Categories:**")
-        for cat in st.session_state.categories['income']:
-            col_a, col_b = st.columns([4, 1])
+        st.caption(f"{len(st.session_state.categories['income'])} categories")
+        
+        # Display in a container with delete buttons
+        for idx, cat in enumerate(sorted(st.session_state.categories['income'])):
+            col_a, col_b = st.columns([5, 1])
             with col_a:
-                st.write(cat)
+                st.write(f"{idx + 1}. {cat}")
             with col_b:
-                if cat not in DEFAULT_INCOME_CATEGORIES:
-                    if st.button("🗑️", key=f"del_inc_{cat}"):
+                if st.button("🗑️", key=f"del_inc_{idx}_{cat}", help="Delete this category"):
+                    # Check if category is in use
+                    df = get_transactions_df()
+                    if not df.empty:
+                        in_use = len(df[df['category'] == cat]) > 0
+                        if in_use:
+                            st.warning(f"⚠️ '{cat}' is used in {len(df[df['category'] == cat])} transactions!")
+                            if st.button(f"⚠️ Delete anyway?", key=f"confirm_del_inc_{idx}"):
+                                st.session_state.categories['income'].remove(cat)
+                                save_data()
+                                st.success(f"Deleted '{cat}'")
+                                st.rerun()
+                        else:
+                            st.session_state.categories['income'].remove(cat)
+                            save_data()
+                            st.success(f"Deleted '{cat}'")
+                            st.rerun()
+                    else:
                         st.session_state.categories['income'].remove(cat)
                         save_data()
                         st.rerun()
+    
+    st.divider()
+    
+    # Category statistics
+    st.subheader("📊 Category Usage Statistics")
+    
+    df = get_transactions_df()
+    if not df.empty:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**Most Used Expense Categories:**")
+            expense_df = df[df['type'] == 'Expense']
+            if not expense_df.empty:
+                usage = expense_df['category'].value_counts().head(5)
+                for cat, count in usage.items():
+                    st.write(f"• {cat}: {count} transactions")
+            else:
+                st.caption("No expense transactions yet")
+        
+        with col2:
+            st.write("**Most Used Income Categories:**")
+            income_df = df[df['type'] == 'Income']
+            if not income_df.empty:
+                usage = income_df['category'].value_counts().head(5)
+                for cat, count in usage.items():
+                    st.write(f"• {cat}: {count} transactions")
+            else:
+                st.caption("No income transactions yet")
+    else:
+        st.info("Add some transactions to see category usage statistics!")
 
 # TAB 8: INSIGHTS
 with tab8:
