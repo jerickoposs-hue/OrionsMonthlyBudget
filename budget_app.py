@@ -269,13 +269,15 @@ with tab1:
     with col1:
         st.subheader("➕ Add New Transaction")
         
+        # Move type selector OUTSIDE the form so it updates immediately
+        trans_type = st.radio("Type", ["Expense", "Income"], horizontal=True, key="trans_type_radio")
+        
         with st.form("transaction_form", clear_on_submit=True):
-            trans_type = st.radio("Type", ["Expense", "Income"], horizontal=True)
-            
             trans_date = st.date_input("Date", datetime.now())
             
+            # Use session state to determine categories
             categories = st.session_state.categories['expense'] if trans_type == "Expense" else st.session_state.categories['income']
-            trans_category = st.selectbox("Category", categories)
+            trans_category = st.selectbox("Category", categories, key=f"cat_{trans_type}")
             
             trans_amount = st.number_input("Amount ($)", min_value=0.01, step=0.01, format="%.2f")
             
@@ -979,11 +981,12 @@ with tab6:
     with col1:
         st.subheader("➕ Add Recurring Transaction")
         
+        # Move type selector OUTSIDE the form so it updates immediately
+        rec_type = st.radio("Type", ["Expense", "Income"], horizontal=True, key="rec_type_radio")
+        
         with st.form("recurring_form", clear_on_submit=True):
-            rec_type = st.radio("Type", ["Expense", "Income"], horizontal=True)
-            
             categories = st.session_state.categories['expense'] if rec_type == "Expense" else st.session_state.categories['income']
-            rec_category = st.selectbox("Category", categories)
+            rec_category = st.selectbox("Category", categories, key=f"rec_cat_{rec_type}")
             
             rec_amount = st.number_input("Amount ($)", min_value=0.01, step=0.01, format="%.2f")
             
