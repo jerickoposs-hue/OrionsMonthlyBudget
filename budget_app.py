@@ -774,80 +774,148 @@ with tab4:
                                 key=lambda x: priority_order.get(x.get('priority', 'Medium'), 2))
             
             for idx, goal in enumerate(sorted_goals):
+                # Get the original index in the unsorted list
+                original_idx = st.session_state.goals.index(goal)
+                
+                # Check if this goal is in edit mode
+                edit_key = f"edit_goal_{original_idx}"
+                if edit_key not in st.session_state:
+                    st.session_state[edit_key] = False
+                
                 with st.container():
-                    col_a, col_b = st.columns([4, 1])
-                    
-                    with col_a:
-                        st.write(f"### {goal['name']}")
-                    
-                    with col_b:
-                        priority_colors = {
-                            "Critical": "🔴",
-                            "High": "🟠",
-                            "Medium": "🟡",
-                            "Low": "🟢"
-                        }
-                        st.write(f"{priority_colors.get(goal['priority'], '⚪')} {goal['priority']}")
-                    
-                    # Progress
-                    progress = min(goal['current'] / goal['target'], 1.0)
-                    st.progress(progress)
-                    
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    with col1:
-                        st.metric("Current", f"${goal['current']:,.2f}")
-                    
-                    with col2:
-                        st.metric("Target", f"${goal['target']:,.2f}")
-                    
-                    with col3:
-                        remaining = goal['target'] - goal['current']
-                        st.metric("Remaining", f"${remaining:,.2f}")
-                    
-                    with col4:
-                        percent = (goal['current'] / goal['target'] * 100) if goal['target'] > 0 else 0
-                        st.metric("Progress", f"{percent:.1f}%")
-                    
-                    # Time remaining
-                    deadline = datetime.fromisoformat(goal['deadline']).date()
-                    days_remaining = (deadline - datetime.now().date()).days
-                    
-                    if days_remaining > 0:
-                        st.info(f"⏰ {days_remaining} days remaining until {deadline.strftime('%Y-%m-%d')}")
+                    if st.session_state[edit_key]:
+                        # EDIT MODE
+                        st.write("### ✏️ Editing Goal")
                         
-                        # Calculate required monthly savings
-                        months_remaining = max(days_remaining / 30, 1)
-                        monthly_needed = remaining / months_remaining
-                        st.caption(f"💡 Save ${monthly_needed:,.2f}/month to reach your goal")
+                        with st.form(f"edit_goal_form_{original_idx}"):
+                            new_name = st.text_input("Goal Name", value=goal['name'])
+                            
+                            col_a, col_b = st.columns(2)
+                            with col_a:
+                                new_target = st.number_input("Target Amount ($)", 
+                                                            value=float(goal['target']), 
+                                                            min_value=1.0, 
+                                                            step=100.0, 
+                                                            format="%.2f")
+                            with col_b:
+                                new_current = st.number_input("Current Amount ($)", 
+                                                             value=float(goal['current']), 
+                                                             min_value=0.0, 
+                                                             step=10.0, 
+                                                             format="%.2f")
+                            
+                            col_c, col_d = st.columns(2)
+                            with col_c:
+                                new_deadline = st.date_input("Target Date", 
+                                                            value=datetime.fromisoformat(goal['deadline']).date(),
+                                                            min_value=datetime.now().date())
+                            with col_d:
+                                new_priority = st.select_slider("Priority", 
+                                                               options=["Low", "Medium", "High", "Critical"],
+                                                               value=goal.get('priority', 'Medium'))
+                            
+                            new_notes = st.text_area("Notes", value=goal.get('notes', ''), height=100)
+                            
+                            col_save, col_cancel = st.columns(2)
+                            with col_save:
+                                if st.form_submit_button("💾 Save Changes", type="primary", use_container_width=True):
+                                    st.session_state.goals[original_idx]['name'] = new_name
+                                    st.session_state.goals[original_idx]['target'] = float(new_target)
+                                    st.session_state.goals[original_idx]['current'] = float(new_current)
+                                    st.session_state.goals[original_idx]['deadline'] = new_deadline.isoformat()
+                                    st.session_state.goals[original_idx]['priority'] = new_priority
+                                    st.session_state.goals[original_idx]['notes'] = new_notes
+                                    st.session_state[edit_key] = False
+                                    save_data()
+                                    st.success(f"Goal '{new_name}' updated!")
+                                    st.rerun()
+                            
+                            with col_cancel:
+                                if st.form_submit_button("❌ Cancel", use_container_width=True):
+                                    st.session_state[edit_key] = False
+                                    st.rerun()
+                    
                     else:
-                        st.warning(f"⚠️ Deadline passed on {deadline.strftime('%Y-%m-%d')}")
-                    
-                    if goal['notes']:
-                        st.caption(f"📝 {goal['notes']}")
-                    
-                    # Actions
-                    col_a, col_b, col_c = st.columns([2, 2, 1])
-                    
-                    with col_a:
-                        contribution = st.number_input(f"Add to goal", min_value=0.0, step=10.0, 
-                                                      key=f"contrib_{idx}", format="%.2f")
-                    
-                    with col_b:
-                        if st.button("💰 Add Contribution", key=f"add_{idx}"):
-                            if contribution > 0:
-                                st.session_state.goals[idx]['current'] += contribution
-                                save_data()
-                                st.success(f"Added ${contribution:.2f} to {goal['name']}!")
+                        # VIEW MODE
+                        col_a, col_b = st.columns([4, 1])
+                        
+                        with col_a:
+                            st.write(f"### {goal['name']}")
+                        
+                        with col_b:
+                            priority_colors = {
+                                "Critical": "🔴",
+                                "High": "🟠",
+                                "Medium": "🟡",
+                                "Low": "🟢"
+                            }
+                            st.write(f"{priority_colors.get(goal['priority'], '⚪')} {goal['priority']}")
+                        
+                        # Progress
+                        progress = min(goal['current'] / goal['target'], 1.0)
+                        st.progress(progress)
+                        
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        with col1:
+                            st.metric("Current", f"${goal['current']:,.2f}")
+                        
+                        with col2:
+                            st.metric("Target", f"${goal['target']:,.2f}")
+                        
+                        with col3:
+                            remaining = goal['target'] - goal['current']
+                            st.metric("Remaining", f"${remaining:,.2f}")
+                        
+                        with col4:
+                            percent = (goal['current'] / goal['target'] * 100) if goal['target'] > 0 else 0
+                            st.metric("Progress", f"{percent:.1f}%")
+                        
+                        # Time remaining
+                        deadline = datetime.fromisoformat(goal['deadline']).date()
+                        days_remaining = (deadline - datetime.now().date()).days
+                        
+                        if days_remaining > 0:
+                            st.info(f"⏰ {days_remaining} days remaining until {deadline.strftime('%Y-%m-%d')}")
+                            
+                            # Calculate required monthly savings
+                            months_remaining = max(days_remaining / 30, 1)
+                            monthly_needed = remaining / months_remaining
+                            st.caption(f"💡 Save ${monthly_needed:,.2f}/month to reach your goal")
+                        else:
+                            st.warning(f"⚠️ Deadline passed on {deadline.strftime('%Y-%m-%d')}")
+                        
+                        if goal.get('notes'):
+                            st.caption(f"📝 {goal['notes']}")
+                        
+                        # Actions
+                        col_a, col_b, col_c, col_d = st.columns([2, 2, 1, 1])
+                        
+                        with col_a:
+                            contribution = st.number_input(f"Add to goal", min_value=0.0, step=10.0, 
+                                                          key=f"contrib_{original_idx}", format="%.2f")
+                        
+                        with col_b:
+                            if st.button("💰 Add Contribution", key=f"add_{original_idx}"):
+                                if contribution > 0:
+                                    st.session_state.goals[original_idx]['current'] += contribution
+                                    save_data()
+                                    st.success(f"Added ${contribution:.2f} to {goal['name']}!")
+                                    st.rerun()
+                        
+                        with col_c:
+                            if st.button("✏️", key=f"edit_goal_btn_{original_idx}", help="Edit goal"):
+                                st.session_state[edit_key] = True
                                 st.rerun()
-                    
-                    with col_c:
-                        if st.button("🗑️ Delete", key=f"del_goal_{idx}"):
-                            st.session_state.goals.pop(idx)
-                            save_data()
-                            st.rerun()
-                    
-                    st.divider()
+                        
+                        with col_d:
+                            if st.button("🗑️", key=f"del_goal_{original_idx}", help="Delete goal"):
+                                st.session_state.goals.pop(original_idx)
+                                save_data()
+                                st.success(f"Goal '{goal['name']}' deleted!")
+                                st.rerun()
+                        
+                        st.divider()
         else:
             st.info("No goals yet. Create your first savings goal!")
 
