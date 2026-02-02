@@ -48,10 +48,12 @@ A comprehensive, feature-rich budgeting application built with Streamlit that he
 - Track last processed dates
 
 ### ⚙️ Customizable Categories
-- Custom expense categories
-- Custom income categories
-- Easy category management
-- Emoji support for visual identification
+- Separate expense and income categories (no overlap)
+- Add custom categories with emoji support
+- Delete any category (with usage warnings)
+- Reset to default categories anytime
+- Category usage statistics
+- Sort categories alphabetically
 
 ### 📱 Financial Insights
 - Personalized recommendations
@@ -135,12 +137,14 @@ streamlit run budget_app.py
 - Housing, Transportation, Food & Dining, Groceries
 - Utilities, Phone & Internet, Healthcare, Insurance
 - Education, Entertainment, Clothing, Personal Care
-- Gifts & Donations, Debt Payments, Savings, Shopping
-- Pets, Maintenance, Other
+- Gifts & Donations, Debt Payments, Shopping, Auto & Gas
+- Pets, Maintenance, Other Expenses
 
 **Default Income Categories:**
-- Salary, Freelance, Investments, Gifts
-- Bonus, Business, Other Income
+- Salary, Freelance, Investments, Gifts Received
+- Bonus, Business Income, Interest, Refunds, Other Income
+
+**Note:** Income and expense categories are completely separate - no overlap!
 
 ### Budget Features
 - Category-specific budgets
